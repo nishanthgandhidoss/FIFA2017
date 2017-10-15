@@ -3,9 +3,22 @@ title: "FIFA 2017"
 author: "Nishanth Gandhidoss, Raghavendran Shankar"
 date: "9/13/2017"
 output:
-  html_document: default
   pdf_document: default
+  html_document: default
 ---
+
+# /****************************************************************************
+#ROADMAP: 
+#
+#Part 1: We are trying to predict player position, and player rating.
+#
+#Part 2: Applying modifications to the input for data normalcy, skewedness, 
+#distribution analysis, and removing low value predictors.  Other 
+#pre-processing tasks should be included at this step.  This is likely the most
+#involved and complex step for this stage of the project.
+#
+#Part 3: Justify and set up stratified sampling if appropriate, k-means.
+# ****************************************************************************/
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo=FALSE)
@@ -48,7 +61,10 @@ fifa_2017 <- read.csv(file = "data/FullData.csv", na.strings=c("","NA"))
 head(fifa_2017)
 ```
 
+# /* Do we really need this table? */
+
 ## Dimensions of the Data
+# /* We should have a written summary of the data, just having a section stating diamentions isn't meaningful. */
 
 ```{r dimension}
 dim(fifa_2017)
@@ -104,6 +120,7 @@ word_cloud_integer <- data.frame(col_name_integer, col_name_integer_values)
 wordcloud(word_cloud_integer$col_name_integer, freq = word_cloud_integer$col_name_integer_values, random.order = TRUE, random.color = FALSE,
           scale = c(2, 0.5), col = brewer.pal(9, "Oranges"))
 ```
+# /* We see here even what look like rendering errors. */
 
 
 ## Goal of the study
@@ -181,6 +198,12 @@ missmap(fifa_2017, col = c("white", "darkolivegreen3"),main = "Missing Map | Aft
 
 ## Skewness
 
+# /* Before, during, or after this step we need to have a decision on 
+# stratified sampling.  Stratifid sampling should only be applied if there are 
+# categorical predictors which have very unequal distributions of variables.  I
+# strongly suspect there won't be any in this data, but we have to have that 
+# step in our analysis. */
+
 The Skewness for numerical predictors are found. The highly skewed variable (skewness > 1) is plotted in histogram
 
 ```{r Skewness greater than 1}
@@ -229,7 +252,11 @@ data.frame(cbind(column = colnames(fifa_data), skew_measures))
 
 ## Correlation between Continuous predictors 
 
-THe relationship between the predictors can be understood by seeing the correlation between the predictors. We can calculate the correlation and plot it visualize those. By this way, we can remove the one of the two predictors which are highly correlated with each other. Let see the correaltion first.
+# /* What about correlation with the target variables?  All data which doesn't contribute to the prediction accuracy of the targeted 
+# variables should be removed from consideration.  This is one of the more important steps as it improves computation requirements and
+# improves intelligability.*/
+
+The relationship between the predictors can be understood by seeing the correlation between the predictors. We can calculate the correlation and plot it visualize those. By this way, we can remove the one of the two predictors which are highly correlated with each other. Let see the correaltion first.
 
 ```{r corrplot}
 par(xpd = TRUE)
@@ -252,3 +279,6 @@ print(removed_col)
 
 
 
+## Setting up the testing apparatus
+
+At this stage, all data have been converted to numerical forms, been pruned, and is primed for testing.  
