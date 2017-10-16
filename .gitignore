@@ -1,2 +1,5 @@
 *.html
 *.pdf
+.RData
+.Rhistory
+.DS_Store
