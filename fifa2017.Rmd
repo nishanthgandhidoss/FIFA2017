@@ -317,8 +317,14 @@ fifa_predictors_categorical <- fifa_predictors[,-sapply(fifa_predictors, is.nume
 fifa_targets_numerical <- fifa_targets[,sapply(fifa_targets, is.numeric)]
 fifa_targets_categorical <- fifa_targets[,sapply(fifa_targets, is.numeric)]
 
+################################
+#TODO:
+#Josh: add linear model, ridge regression, lasso regression
+#
 
 fifa_training_control <- trainControl(method = "cv", number = 5)
+
+
 
 enet_grid <- expand.grid(.lambda = c(0, 0.01, 0.05, 0.1, 0.5, 1), .fraction = seq(0.05, 1, length = 20))
 
