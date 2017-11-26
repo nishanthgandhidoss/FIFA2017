@@ -55,7 +55,7 @@ library(elasticnet)
 library(earth)
 library(doMC)
 
-registerDoMC(12)
+registerDoMC(4)
 ```
 
 
@@ -320,8 +320,35 @@ fifa_targets_categorical <- fifa_targets[,sapply(fifa_targets, is.numeric)]
 
 fifa_training_control <- trainControl(method = "cv", number = 5)
 
-elastic_net_fit <- train(fifa_predictors_numerical, fifa_targets_numerical, preProcess = c("center", "scale", "BoxCox", "pca"), method = 'enet')
-MARS_fit <- train(fifa_predictors_numerical, fifa_targets_numerical, preProcess = c("center", "scale", "BoxCox", "pca"), method = 'bagEarth')
+enet_grid <- expand.grid(.lambda = c(0, 0.01, 0.05, 0.1, 0.5, 1), .fraction = seq(0.05, 1, length = 20))
+
+elastic_net_fit <- train(fifa_predictors_numerical, fifa_targets_numerical, preProcess = c("center", "scale", "BoxCox", "pca"), method = 'enet', tuneGrid = enet_grid, trControl = fifa_training_control)
+
+PLS_fit <- train(
+  x = fifa_predictors_numerical, 
+  y = fifa_targets_numerical, 
+  preProcess = c("center", "scale", "BoxCox", "pca"), 
+  method = 'pls',
+  trControl = fifa_training_control
+)
+
+svm_fit <- train(
+  x = fifa_predictors_numerical, 
+  y = fifa_targets_numerical, 
+  preProcess = c("center", "scale", "BoxCox", "pca"), 
+  method = "svmRadial",
+  tuneLength = 14,
+  trControl = fifa_training_control
+)
+
+
+MARS_fit <- train(
+  x = fifa_predictors_numerical, 
+  y = fifa_targets_numerical, 
+  preProcess = c("center", "scale", "BoxCox", "pca"), 
+  method = 'bagEarth',
+  trControl = fifa_training_control
+  )
 
 
 ```
