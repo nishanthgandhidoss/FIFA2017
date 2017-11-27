@@ -60,253 +60,20 @@ library(doParallel)
 
 ## FIFA 2017
 
-Something about the data - read the kaggle page
-
 ## Load the data
 
-```{r loadthedata}
-fifa_2017 <- read.csv(file = "data/FullData.csv", na.strings=c("","NA"))
-head(fifa_2017)
-
-fifa_predictors <- fifa_2017[,-which(names(fifa_2017) %in% c("Rating", "National_Position"))]
-fifa_targets <- fifa_2017[,which(names(fifa_2017) %in% c("Rating", "National_Position"))]
-
-```
-
-<!-- Do we really need this table? -->
-
-## Dimensions of the Data
-<!-- We should have a written summary of the data, just having a section stating diamentions isn't meaningful. -->
-
-```{r dimension}
-dim(fifa_2017)
-```
-
-Data has 17588 samples with 53 variables in it.
-
-## Variables Word cloud
-
-Let us visualize the word cloud for the whole variables in our dataset.
-
-```{r word cloud}
-# Setting the seed
-set.seed(1)
-
-# Getting the column names
-col_name <- colnames(fifa_2017)
-
-# Generate random numbers for frequency for the word cloud
-col_name_values <- runif(length(col_name), min = 0, max = 1)
-
-# Create the Word cloud for all variables
-word_cloud <- data.frame(col_name, col_name_values)
-wordcloud(word_cloud$col_name, freq = word_cloud$col_name_values, random.order = TRUE, random.color = FALSE, scale = c(2, 0.05), col = brewer.pal(9, "Oranges"))
-```
-
-As we have seen the whole variable word cloud let us see the continuous and categorical variable's word cloud.
-
-```{r wordcloudi}
-# Setting the seed
-set.seed(1)
-
-# Filtering the dataset
-subset_colclasses <- function(DF, colclasses="numeric") {
-  DF[,sapply(DF, function(vec, test) class(vec) %in% test, test=colclasses)]
-}
-fifa_2017_factor <- subset_colclasses(fifa_2017, c("factor"))
-fifa_2017_integer <- subset_colclasses(fifa_2017, c("integer", "num"))
-
-# Getting the column names
-col_name_factor <- colnames(fifa_2017_factor)
-col_name_integer <- colnames(fifa_2017_integer)
-
-# Generate random numbers for frequency for the word cloud
-col_name_factor_values <- runif(length(col_name_factor), min = 0, max = 1)
-col_name_integer_values <- runif(length(col_name_integer), min = 0, max = 1)
-
-# Create the Word cloud for all variables
-word_cloud_factor <- data.frame(col_name_factor, col_name_factor_values)
-wordcloud(word_cloud_factor$col_name_factor, freq = word_cloud_factor$col_name_factor_values, random.order = TRUE, random.color = FALSE, 
-          scale = c(3.4, 0.5), col = brewer.pal(9, "Oranges"))
-word_cloud_integer <- data.frame(col_name_integer, col_name_integer_values)
-wordcloud(word_cloud_integer$col_name_integer, freq = word_cloud_integer$col_name_integer_values, random.order = TRUE, random.color = FALSE,
-          scale = c(2, 0.5), col = brewer.pal(9, "Oranges"))
-```
-<!-- We see here even what look like rendering errors. -->
-
-
-## Goal of the study
-
-Now we are going to describe the goal of our study.
-
-- Predicting the player rating
-- Player field position
-
-## Missing values in the data
-
-Regarding the missing values in the predictors, the below image shows the missing values with the white places in the plot. 
-
-```{r missingmap}
-# Missmap
-missmap(fifa_2017, col = c("white", "brown3"), main = "Missing Map | Before Processing")
-```
-
-The above map shows the missing values in white.
-
-```{r missingcount1}
-missing_count <- sapply(fifa_2017, function(x) sum(is.na(x)))
-print(missing_count)
-```
-
-Thus we have the column names and number of missing values in each of the columns. To understand things more clear, lets filter out only those column having missing values leaving others.
-
-```{r missingcount2}
-# Get the missing variables alone
-missing_count[missing_count > 0]
-```
-
-
-## Imputation of missing values
-
-The Variables National_Position, National_Kit, Club_Kit, Club_joining, Contract_Expiry, Club_Position have atleast one missing value in the data. 
-As the number of outliers is large in Club_fit and Contract_Expiry, the missing values are imputed by median value, The variables National_Position and National_kit are removed as they are not wanted.
-The Club_position and Club_Joining have missing categorical values which are imputed by mode.
-
-```{r Imputation of missing values}
-# Remove unwanted predictors
-fifa_2017$National_Position <- NULL
-fifa_2017$National_Kit <- NULL
-
-# Impute values by median
-fifa_2017$Club_Kit = ifelse(is.na(fifa_2017$Club_Kit),ave(fifa_2017$Club_Kit, FUN = function(x) median(x, na.rm = TRUE)),fifa_2017$Club_Kit)
-fifa_2017$Contract_Expiry = ifelse(is.na(fifa_2017$Contract_Expiry),ave(fifa_2017$Contract_Expiry, FUN = function(x) median(x, na.rm = TRUE)),fifa_2017$Contract_Expiry)
-
-# Impute categorical values by mode
-Mode <- function(x) {
-  ux <- unique(x)
-  ux[which.max(table(match(x, ux)))]
-}
-
-fifa_2017 <- fifa_2017[!is.na(fifa_2017$Club_Position), ]
-fifa_2017 <- fifa_2017[!is.na(fifa_2017$Club_Joining), ]
-```
-
-## Conversion of Height and Weight to numerical values
-
-The height and weight variable are converted to numerical values
-
-```{r Conversion to numerical values}
-fifa_2017$Height <- as.numeric(gsub(fifa_2017$Height,pattern = " cm",replacement = ""))
-fifa_2017$Weight <- as.numeric(gsub(fifa_2017$Weight,pattern = " kg",replacement = ""))
-```
-
-## Missing values verification of data
-
-The data after imputation is verified for missing values. It is found that there is no missing value in the predictors.
-
-```{r missmap}
-missmap(fifa_2017, col = c("white", "darkolivegreen3"),main = "Missing Map | After Processing")
-```
-
-## Removing unique predictors like player name
-
-Unique predictors such as name of the player is not going to be related to the target variable player rating. So we will remove those
-
-```{r Removing name}
-fifa_2017 <- fifa_2017[, !colnames(fifa_2017) %in% c("Name", "Nationality", "Club", "Club_Joining", "Birth_Date", "Preffered_Position", "Work_Rate")]
-```
-
-## Skewness
-
-<!-- 
-Before, during, or after this step we need to have a decision on 
-stratified sampling.  Stratifid sampling should only be applied if there are 
-categorical predictors which have very unequal distributions of variables.  I
-strongly suspect there won't be any in this data, but we have to have that 
-step in our analysis. 
--->
-
-The Skewness for numerical predictors are found. The highly skewed variable (skewness > 1) is plotted in histogram
-
-```{r Skewness greater than 1}
-# Intialize variable
-skew = list()
-
-# Selecting only numerical values
-fifa_num = sapply(X = fifa_2017,is.numeric)
-
-# Calculating Skewness for the variables
-skew = round(abs(apply(fifa_2017[,fifa_num], 2, skewness)), 3)
-high_skew <- list()
-high_skew_value <- list()
-par(mfrow=c(3,3))
-
-# Select skewness values greater than 1 and plot histogram
-for(i in 1:length(skew)){
-    if(skew[i] > 1){
-        high_skew <- c(high_skew, names(skew[i]))
-        high_skew_value <- c(high_skew_value, as.numeric(skew[i]))
-        hist(fifa_2017[,names(skew[i])],main = paste(names(skew[i]), "|", skew[i]), cex.main = 3, xlab = names(skew[i]))
-    }
-}
-```
-
-## Box Cox Transformation
-
-The Box Cox transformation is used to normalize the highly skewed predictos. Here, the highly skewed predictors are Club_kit, Ball_control, Dribbling, Short_Pass, Gk_Positioning, Gk_Diving,Gk_Kicking,Gk_Handling and Gk_Reflexes
-
-```{r Removing skewness by Box Cox}
-# Preprocessing the data and applying Box Cox transformation for highly skewed variables
-fifa_trans <- preProcess(x = fifa_2017[unlist(high_skew)],method = "BoxCox")
-fifa_data <- predict(fifa_trans,newdata = fifa_2017[unlist(high_skew)])
-
-# Calculating Skewness after Box Cox transformation and Plotting histogram for the transformed variables
-skew_measures <- matrix()
-par(mfrow = c(3,3))
-for (i in 1:ncol(fifa_data)){
-    skew_measures[i] <- round(skewness(fifa_data[,i]), 3)
-    hist(fifa_data[,i], main = paste(colnames(fifa_data)[i], "|", skew_measures[i]), cex.main = 3, xlab = colnames(fifa_data)[i]  )
-}
-
-data.frame(cbind(column = colnames(fifa_data), skew_measures))
-```
-
-## Store the data
-
-Lets store the data for future reference easily in a CSV.
-
-```{r Store the data}
-write.csv(fifa_2017, file = "data/fifa_processed.csv", row.names = FALSE)
-```
-
-## Load the data
-
-Lets load the processed data here and I will be using this data here on for the model creation.
+Lets load the processed data here and I will be using this data here on for the model creation. This data is preprocessed for all the preprocessing required like dummy vairable creation, near zero variance, corrleation, etc. and we can use this to create the models.
 
 ```{r Load the data}
 fifa <- read.csv("data/fifa_processed.csv")
 ```
 
-## Setting up dummy variables
-
-```{r}
-# Setting dummy Variables
-dmy <- dummyVars(" ~ .", data = fifa)
-fifa <- data.frame(predict(dmy, newdata = fifa))
-```
-
-
-## Near Zero varaince
-
-```{r}
-fifa <- fifa[, -nearZeroVar(fifa)]
-```
 
 ## Model Creation
 
 With the number of samples being vwry large than the number of predictors, i am going to split this data into two training and testing set using createDataPartition() in the caret package. Given the sample size, we will retain the 80% of the samples to the training set and 20% of the sample in the testing set. The train set will be used to tune the models by splitting that into 10 fold for cross validation in order to have better model performance. For spliting the train set we will use 5 fold cross validation.
 
-```{r Question3}
+```{r}
 # Setting the seed for reproduciablity
 set.seed(1)
 
@@ -362,7 +129,7 @@ postResample(pred = knn_pred, obs = y_test)
 
 From the above plot and the tabulated result, we can clearly see that the best model has the k value of 5. That is the best R^2 is obtain when we are considering 5 nearest neighbours. The R^2 value obtained on the test set is 0.45.
     
-#### Neural Network without PCA
+#### Neural Network 
 
 Lets bulid the model using neural network model using train() in caret package with method as nnet. Here we are buliding it without PCA. I am setting the decay to be 0, 0.001, 0.01, 0.1 and size varying from 1 to 10.
 
@@ -402,47 +169,7 @@ postResample(pred = nnet_pred, obs = y_test)
 ```
 
 From the above plot and the tabulated result, we can clearly see that the best model of neural network model is of size 4 and decay is 0.01. The R^2 value obtained on the test set is 0.9987.
-    
-#### Neural Network with PCA
-
-Let us bulid the model using PCA in the preprocessing argument of the train(). I am setting the decay to be 0, 0.001, 0.01, 0.1 and size varying from 1 to 10.
-
-```{r Question3 Neural Network with pca, warning=FALSE}
-# Create the grid for the network
-nn_grid <- expand.grid(.decay = c(0, 0.01, 0.1), .size = 1:10)
-
-# Set the seed
-set.seed(1)
-
-# Check the file exists and load to variables
-# else bulid and store the model
-if(file.exists("models/nnet_pca_model_q3.rds")) {
-    nnet_pca_model <- readRDS("models/nnet_pca_model_q3.rds")
-} else {
-    nnet_pca_model <- train(x = X_train, y = yTrain, tuneGrid = nn_grid, method = "nnet", preProc = c("center", "scale", "pca"),
-                        linout = TRUE, trace = FALSE, MaxNWts = 10 * (ncol(absorpTrain)+1) + 10 + 1, maxit=500)
-    saveRDS(nnet_pca_model, "models/nnet_pca_model_q3.rds")
-}
-
-# Print the model
-nnet_pca_model
-
-# Plot the model
-plot(nnet_pca_model)
-
-# Predict the test set
-nnet_pca_pred <- predict(nnet_pca_model, newdata = absorpTest)
-```
-
-#### Test set
-
-```{r Question3 Neural Network with pcai} 
-# Get the test Set performance metrics
-postResample(pred = nnet_pca_pred, obs = yTest)
-```
-
-From the above plot and the tabulated result, we can clearly see that the best model of neural network model is of size 2 and decay is 0.1. The R^2 value obtained on the test set is 0.2661. It is very low compared to neural network without pcs. Thus PCA is not helping much.
-
+   
 #### Averaged Neural Network
 
 Lets bulid the model using averaged neural network model using train() in caret package with method as avNNet. I am setting the decay to be 0, 0.001, 0.01, 0.1 and size varying from 1 to 10 with bag as False.
@@ -456,12 +183,12 @@ set.seed(1)
 
 # Check the file exists and load to variables
 # else bulid and store the model
-if(file.exists("models/avg_nnet_model_q3.rds")) {
-    avg_nnet_model <- readRDS("models/avg_nnet_model_q3.rds")
+if(file.exists("models/avg_nnet_model.rds")) {
+    avg_nnet_model <- readRDS("models/avg_nnet_model.rds")
 } else {
-    avg_nnet_model <- train(x = absorpTrain, y = yTrain, tuneGrid = tune_grid, method = "avNNet", preProc = c("center", "scale"),
-                            linout = TRUE, trace = FALSE, MaxNWts = 10 * (ncol(absorpTrain) + 1) + 10 + 1, maxit = 500)
-    saveRDS(avg_nnet_model, "models/avg_nnet_model_q3.rds")
+    avg_nnet_model <- train(x = X_train, y = y_train, tuneGrid = tune_grid, method = "avNNet", preProc = c("center", "scale"),
+                            linout = TRUE, trace = FALSE, MaxNWts = 10 * (ncol(X_train) + 1) + 10 + 1, maxit = 500)
+    saveRDS(avg_nnet_model, "models/avg_nnet_model.rds")
 }
 
 # Print the model
@@ -471,14 +198,14 @@ avg_nnet_model
 plot(avg_nnet_model)
 
 # Make the prediction 
-avg_nnet_pred <- predict(avg_nnet_model, newdata = absorpTest)
+avg_nnet_pred <- predict(avg_nnet_model, newdata = X_test)
 ```
 
 #### Test set
 
 ```{r Question3 Averaged Neural Networki}
 # Get the performance scores
-postResample(pred = avg_nnet_pred, obs = yTest)
+postResample(pred = avg_nnet_pred, obs = y_test)
 ```
 
 From the above plot and the tabulated result, we can clearly see that the best model of averaged neural network model has weight decay value of 0.1 and size as 4. The R^2 value obtained on the test set is 0.9989.
@@ -521,51 +248,6 @@ postResample(pred = mars_pred, obs = y_test)
 ```
 
 From the above plot and the tabulated result, we can clearly see that the best model of mars model has nprune = 24 and degree = 2. The R^2 value obtained on the test set is 0.985.
-
-#### Mars Model with spatial sign removing correlated predictors
-
-When I tried removing the correlated predictors for MARS model even with threshold of .999 I was getting only one predictors ie) first predictors. So I used that predictor to create the model
-
-```{r Question3 Mars spatial}
-# Remove the highly correlated value
-highlyCorDescr <- findCorrelation(absorp_df, cutoff = 0.999)
-absorp_cor_df <- absorp_df[,-highlyCorDescr]
-
-# Creating the test and train after removing correlated predictors
-absorpCorTrain <- as.data.frame(absorp_cor_df[cv_index])
-absorpCorTest <- as.data.frame(absorp_cor_df[-cv_index])
-
-# Setting the seed
-set.seed(1)
-
-# Check the file exists and load to variables
-# else bulid and store the model
-if(file.exists("models/mars_model_Spatial_q3.rds")) {
-    mars_model <- readRDS("models/mars_model_Spatial_q3.rds")
-} else {
-    mars_model <- train(x = X_train, y = y_train, trControl = ctrl, preProcess = "spatialSign", tuneGrid = tune_grid, method = "earth")
-    saveRDS(mars_model, "models/mars_model_Spatial_q3.rds")
-}
-
-# Print the model
-mars_model
-
-# Plot the model
-plot(mars_model)
-
-# Make the prediction 
-mars_pred <- predict(mars_model, newdata = absorpTest)
-```
-
-#### Test set
-
-```{r Question3 Mars spatiali}
-# Get the performance scores
-postResample(pred = mars_pred, obs = yTest)
-```
-
-From the above plot and the tabulated result, we can clearly see that the best model of mars model has nprune = 13 and degree = 1. The R^2 value obtained on the test set is 0.8156.
-
 
 #### Support Vector Machine
 
