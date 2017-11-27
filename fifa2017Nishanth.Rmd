@@ -87,11 +87,215 @@ y_train <- as.numeric(fifaTrain[, "Rating"])
 y_test <- as.numeric(fifaTest[, "Rating"])
 
 # Setting up the control parameter
-ctrl <- trainControl(method = "cv", number = 3)
+ctrl <- trainControl(method = "cv", number = 5)
 ```
 
 Thus we have the data that is split properly into test and train set. Lets build the models.
 
+### Linear Models
+
+### Linear model
+
+Let us first bulid the linear model for this dataset. Usually for the continuous predictors we will be using correlation to process the data. But here we have categorical predictors which we have already been removed with near zero variance processing. I have used train() in the caret package using method as lm. With this we have the following results.
+
+```{r Question2(e)Linear, warning=FALSE}
+set.seed(1)
+
+# Check the file exists and load to variables
+# else bulid and store the KNN model
+if(file.exists("models/lm_model.rds")) {
+    lm_model <- readRDS("models/lm_model.rds")
+} else {
+    lm_model <- train(x = X_train, y = y_train, method = "lm", trControl = ctrl)
+    saveRDS(lm_model, "models/lm_model.rds")
+}
+
+# Print the model
+lm_model
+
+# Predict the model
+lm_pred <- predict(lm_model, X_test)
+
+# Plot the model
+plot(lm_pred, y_test, cex = 1.3, pch = 16, col = "blue", xlab = "Predicted", ylab = "Observed", main = "Predicted vs Observed")
+```
+
+### Test set
+
+```{r}
+# Get the test Set performance metrics
+postResample(pred = lm_pred, obs = y_test)
+```
+
+Above results and the plot shows information such as train and test set RMSE and R square value of the linear model. This model looks worst as it has vert low R square value of 0.0325.
+
+### Partial Least Square
+
+Now let us use partial least square model on our dataset with all the predictors. Here we will use the train() in the caret package with method = pls that represents partial least square. And we will set the train control with our contraol grid. Preprocessing of the data is necessary for this model so we process the data using centering and scaling. After training the model we have the follwoing results.
+
+```{r Question1(c)pls}
+set.seed(1)
+
+# Check the file exists and load to variables
+# else bulid and store the PLS model
+if(file.exists("models/pls_model.rds")) {
+    lm_model <- readRDS("models/pls_model.rds")
+} else {
+    pls_model <- train(x = X_train, y = y_train, method = "pls", trControl = ctrl, preProcess = c("center", "scale"), tuneLength = 20)
+    saveRDS(pls_model, "models/pls_model.rds")
+}
+
+# Print the model
+pls_model
+
+# Plot the results
+plot(pls_model, type = c("p", "g"), xlab = "Components", ylab = "RMSE") 
+
+# Make prediction on the test set
+pls_pred <- predict(pls_model, X_test, ncomp = as.numeric(pls_model$bestTune))
+```
+
+### Test set
+
+```{r}
+# Get the test Set performance metrics
+postResample(pred = pls_pred, obs = y_test)
+```
+
+Thus the above plot shows that the 14 components is the best value to choose for the train set. And followed by we have the model's tuning parameter, RMSE and R square value of the train and test sets.
+
+### Ridge Regression
+
+Let us check how ridge regression is fitting the dataset. Here we will use the train() in the caret package with method = ridge that represents ridge regression. And we will set the train control with our control grid. Preprocessing of the data is necessary for this model so we process the data using centering and scaling. We will use 20 different values of lambda from 0 to 0.3 beacuse of the step raise if we set 0 to 1. After training the model we have the follwoing results.
+
+```{r Question2(e)Rigde, warning=FALSE, error=FALSE}
+# Create the grid for the ridge model
+ridge_grid <- data.frame(.lambda = seq(0, .1, length = 20))
+
+set.seed(1)
+
+# Check the file exists and load to variables
+# else bulid and store the Ridge model
+if(file.exists("models/ridge_model.rds")) {
+    ridge_model <- readRDS("models/ridge_model.rds")
+} else {
+    ridge_model <- train(x = X_train, y = y_train, method = "ridge", trControl = ctrl, preProcess = c("center", "scale"), tuneGrid = ridge_grid)
+    saveRDS(ridge_model, "models/ridge_model.rds")
+}
+
+# Print the model
+ridge_model
+
+# Plot the results
+plot(ridge_model, type = c("p", "g"), xlab = "Lambda", ylab = "RMSE")
+
+# Make prediction on the test set
+ridge_pred <- predict(ridge_model, as.matrix(X_test), s = as.numeric(ridge_model$bestTune))
+```
+
+### Test set
+
+```{r}
+# Get the test Set performance metrics
+postResample(pred = ridge_pred, obs = y_test)
+```
+
+Thus the above plot shows that the best lambda value for this dataset is 0.1578947 that is choosed from the train set using ridge regression. And followed by we have the model's tuning parameter, RMSE and R square value of the train and test sets.
+
+
+### Lasso Regression
+
+Let us try lasso regualizer for the dataset. Here we will be using the train() in the caret package with method = enet but that represents lasso regression by setting the lambda in the tune grid to be zero and varying the fraction parameter. Preprocessing of the data is necessary for this model so we process the data using centering and scaling. We will use 20 different values of fraction from 0 to 1. After training the model we have the follwoing results.
+
+```{r Question2(e)lasso, warning=FALSE,message=FALSE, error=FALSE}
+# Create the grid for the ridge model
+lasso_grid <- expand.grid(.fraction = seq(0.2, 1, length = 20))
+
+set.seed(1)
+
+# Check the file exists and load to variables
+# else bulid and store the lasso model
+if(file.exists("models/lasso_model.rds")) {
+    lasso_model <- readRDS("models/lasso_model.rds")
+} else {
+    lasso_model <- train(x = X_train, y = y_train, method = "lasso", trControl = ctrl, preProcess = c("center", "scale"), tuneGrid = lasso_grid)
+    saveRDS(lasso_model, "models/lasso_model.rds")
+}
+
+# Print the model
+lasso_model
+
+# Plot the results
+plot(lasso_model, type = c("p", "g"), xlab = "Fraction", ylab = "RMSE")
+
+# Make prediction on the test set
+lasso_pred <- predict(lasso_model, as.matrix(X_test), s = as.numeric(lasso_model$bestTune[1]), mode = "fraction")
+```
+
+### Test set
+
+```{r}
+# Get the test Set performance metrics
+postResample(pred = lasso_pred, obs = y_test)
+```
+
+Thus the above plot shows that the best fraction value for this dataset is  that is choosed from the train set using lasso regression. And followed by we have the model's tuning parameter, RMSE and R square value of the train and test sets.
+
+### Elastic Net
+
+Let us try Elastic net regualizer for the dataset. Here we will be using the train() in the caret package with method = enet but by setting the lambda and fraction in the tune grid to be varying values so that it gives us the otimal parameter for the elastic net model. Preprocessing of the data is necessary for this model so we process the data using centering and scaling. We will use 20 different values of fraction from 0.05 to 1 and three different lambda value as 0, 0.01, 0.1. After training the model we have the following results.
+
+
+```{r Question2(e)enet, warning=FALSE}
+# Develop the grid
+enetGrid <- expand.grid(.lambda = c(0, 0.01, .1), .fraction = seq(0.05, 1, length = 20))
+
+set.seed(1)
+
+# Check the file exists and load to variables
+# else bulid and store the enet model
+if(file.exists("models/enet_model.rds")) {
+    enet_model <- readRDS("models/enet_model.rds")
+} else {
+    enet_model <- train(x = X_train, y_train, method = "enet", tuneGrid = enetGrid, trControl = ctrl, preProc = c("center", "scale"))
+    saveRDS(enet_model, "models/enet_model.rds")
+}
+
+# Print the model
+enet_model
+
+# Plot the paramter to see the best parameter
+plot(enet_model, type = c("p", "g"), xlab = "Fraction", ylab = "RMSE")
+
+# Make prediction on the test set
+enet_pred <- predict(enet_model, as.matrix(X_test), s = as.numeric(enet_model$bestTune), mode = "fraction")
+```
+
+### Test set
+
+```{r}
+# Get the test Set performance metrics
+postResample(pred = enet_pred, obs = y_test)
+```
+
+Thus the above plot shows that the best enet model has the parameter of fraction value as 0.35 and lambda as 0.1 that is choosed from the train set using Elastic net. And followed by we have the model's tuning parameter, RMSE and R square value of the train and test sets.
+
+### Overall Results
+
+After doing all five models the below table shows the Best parameter, RMSE and R square value of the Training and test set.
+
+Model | Parameter |  Training RMSE | Training R Squared | Testing RMSE | Testing R Squared
+----- | --------- | ---- | -------- | ---- | -------- | -----
+    Linear  |   388 predictors     |    47.2918    |   0.1072  |   24.0788     |   0.0325  |
+    PLS  |   7 components     |    11.9295    |   0.4759  |   10.8979     |   0.4457  |
+    Ridge  |   Lambda as 0.1      |    12.9275    |   0.462  |   12.1947     |   0.385  |
+    Lasso  |   Fraction as 0.2     |    1093454.0597    |   0.3858  |   11.4899     |   0.3907  |
+    Elastic Net  |   lambda as 0.1 & Fraction as 0.35  |    11.6297    |   0.4847  |   11.1501     |   0.4271  |
+
+Looking at the table we can say that, PLS is the best for this dataset. Thus the model generated using other models doesn't have better predictive performance than PLS for this test and train split with seed as 1.
+
+
+### Non Linear Models 
 
 #### KNN
 
