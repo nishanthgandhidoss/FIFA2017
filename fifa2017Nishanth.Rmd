@@ -64,10 +64,15 @@ library(doParallel)
 
 Lets load the processed data here and I will be using this data here on for the model creation. This data is preprocessed for all the preprocessing required like dummy vairable creation, near zero variance, corrleation, etc. and we can use this to create the models.
 
+Preprocessing steps done for the loaded dataset
+
+1) ALl the preprocessing from the first presentation 
+2) Created dummy variables for the categorical predictors
+3) Took near zero variance
+
 ```{r Load the data}
 fifa <- read.csv("data/fifa_processed.csv")
 ```
-
 
 ## Model Creation
 
