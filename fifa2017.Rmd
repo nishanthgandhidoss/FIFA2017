@@ -55,7 +55,7 @@ library(elasticnet)
 library(earth)
 library(doMC)
 
-registerDoMC(4)
+registerDoMC(12)
 ```
 
 
@@ -319,16 +319,43 @@ fifa_targets_categorical <- fifa_targets[,sapply(fifa_targets, is.numeric)]
 
 ################################
 #TODO:
-#Josh: add linear model, ridge regression, lasso regression
+#Josh: ridge regression, lasso regression?
 #
 
 fifa_training_control <- trainControl(method = "cv", number = 5)
 
+usefulDataset <- data.frame(cbind(fifa_targets_numerical, fifa_predictors_numerical))
 
+linearModel <- lm(
+  fifa_targets_numerical ~ ., data = usefulDataset
+)
+
+lasso_fit <- train(
+  x = fifa_predictors_numerical, 
+  y = fifa_targets_numerical, 
+  preProcess = c("center", "scale", "BoxCox", "pca"), 
+  method = 'lasso', 
+  trControl = fifa_training_control
+)
+
+ridge_fit <- train(
+  x = fifa_predictors_numerical, 
+  y = fifa_targets_numerical, 
+  preProcess = c("center", "scale", "BoxCox", "pca"), 
+  method = 'ridge', 
+  trControl = fifa_training_control
+)
 
 enet_grid <- expand.grid(.lambda = c(0, 0.01, 0.05, 0.1, 0.5, 1), .fraction = seq(0.05, 1, length = 20))
 
-elastic_net_fit <- train(fifa_predictors_numerical, fifa_targets_numerical, preProcess = c("center", "scale", "BoxCox", "pca"), method = 'enet', tuneGrid = enet_grid, trControl = fifa_training_control)
+elastic_net_fit <- train(
+  x = fifa_predictors_numerical, 
+  y = fifa_targets_numerical, 
+  preProcess = c("center", "scale", "BoxCox", "pca"), 
+  method = 'enet', 
+  tuneGrid = enet_grid, 
+  trControl = fifa_training_control
+)
 
 PLS_fit <- train(
   x = fifa_predictors_numerical, 
