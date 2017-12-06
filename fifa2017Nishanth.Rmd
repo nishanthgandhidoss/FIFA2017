@@ -1,0 +1,493 @@
+---
+title: "FIFA 2017"
+author: "Nishanth Gandhidoss, Raghavendran Shankar, Josh Marshall"
+date: "9/13/2017"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+<!--
+ROADMAP: 
+
+Part 1: We are trying to predict player position, and player rating.
+
+Part 2: Applying modifications to the input for data normalcy, skewedness, 
+distribution analysis, and removing low value predictors.  Other 
+pre-processing tasks should be included at this step.  This is likely the most
+involved and complex step for this stage of the project.
+
+Part 3: Justify and set up stratified sampling if appropriate, k-means.
+-->
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo=FALSE)
+```
+
+
+```{r installing necessary packages, include=FALSE}
+# installing the packages
+installNewPackage <- function(packageName) {
+        if(packageName  %in% rownames(installed.packages()) == FALSE)
+        {
+                install.packages(packageName, repos = "http://cran.us.r-project.org", dependencies=TRUE)
+        }
+}
+
+installNewPackage("Amelia")
+installNewPackage("wordcloud")
+installNewPackage("caret")
+installNewPackage("corrplot")
+installNewPackage("moments")
+installNewPackage("e1071")
+installNewPackage("elasticnet")
+installNewPackage("earth")
+installNewPackage("doParallel")
+installNewPackage("doMC")
+
+library(Amelia)
+library(wordcloud)
+library(caret)
+library(corrplot)
+library(moments)
+library(e1071)
+library(elasticnet)
+library(earth)
+library(doMC)
+library(doParallel)
+```
+
+
+## FIFA 2017
+
+## Load the data
+
+Lets load the processed data here and I will be using this data here on for the model creation. This data is preprocessed for all the preprocessing required like dummy vairable creation, near zero variance, corrleation, etc. and we can use this to create the models.
+
+Preprocessing steps done for the loaded dataset
+
+1) ALl the preprocessing from the first presentation 
+2) Created dummy variables for the categorical predictors
+3) Took near zero variance
+
+```{r Load the data}
+fifa <- read.csv("data/fifa_processed.csv")
+```
+
+## Model Creation
+
+With the number of samples being vwry large than the number of predictors, i am going to split this data into two training and testing set using createDataPartition() in the caret package. Given the sample size, we will retain the 80% of the samples to the training set and 20% of the sample in the testing set. The train set will be used to tune the models by splitting that into 10 fold for cross validation in order to have better model performance. For spliting the train set we will use 5 fold cross validation.
+
+```{r}
+# Setting the seed for reproduciablity
+set.seed(1)
+
+# Performing data spliting
+cv_index <- createDataPartition(fifa$Rating, p = 0.8, list = FALSE)
+fifaTrain <- fifa[cv_index, ]
+fifaTest <- fifa[-cv_index, ]
+X_train <- fifaTrain[, !colnames(fifaTrain) %in% c("Rating")]
+X_test <- fifaTest[, !colnames(fifaTest) %in% c("Rating")]
+y_train <- as.numeric(fifaTrain[, "Rating"])
+y_test <- as.numeric(fifaTest[, "Rating"])
+
+# Setting up the control parameter
+ctrl <- trainControl(method = "cv", number = 5)
+```
+
+Thus we have the data that is split properly into test and train set. Lets build the models.
+
+### Linear Models
+
+### Linear model
+
+Let us first bulid the linear model for this dataset. Usually for the continuous predictors we will be using correlation to process the data. But here we have categorical predictors which we have already been removed with near zero variance processing. I have used train() in the caret package using method as lm. With this we have the following results.
+
+```{r Question2(e)Linear, warning=FALSE}
+set.seed(1)
+
+# Check the file exists and load to variables
+# else bulid and store the KNN model
+if(file.exists("models/lm_model.rds")) {
+    lm_model <- readRDS("models/lm_model.rds")
+} else {
+    lm_model <- train(x = X_train, y = y_train, method = "lm", trControl = ctrl)
+    saveRDS(lm_model, "models/lm_model.rds")
+}
+
+# Print the model
+lm_model
+
+# Predict the model
+lm_pred <- predict(lm_model, X_test)
+
+# Plot the model
+plot(lm_pred, y_test, cex = 1.3, pch = 16, col = "blue", xlab = "Predicted", ylab = "Observed", main = "Predicted vs Observed")
+```
+
+### Test set
+
+```{r}
+# Get the test Set performance metrics
+postResample(pred = lm_pred, obs = y_test)
+```
+
+Above results and the plot shows information such as train and test set RMSE and R square value of the linear model. This model looks worst as it has vert low R square value of 0.0325.
+
+### Partial Least Square
+
+Now let us use partial least square model on our dataset with all the predictors. Here we will use the train() in the caret package with method = pls that represents partial least square. And we will set the train control with our contraol grid. Preprocessing of the data is necessary for this model so we process the data using centering and scaling. After training the model we have the follwoing results.
+
+```{r Question1(c)pls}
+set.seed(1)
+
+# Check the file exists and load to variables
+# else bulid and store the PLS model
+if(file.exists("models/pls_model.rds")) {
+    lm_model <- readRDS("models/pls_model.rds")
+} else {
+    pls_model <- train(x = X_train, y = y_train, method = "pls", trControl = ctrl, preProcess = c("center", "scale"), tuneLength = 20)
+    saveRDS(pls_model, "models/pls_model.rds")
+}
+
+# Print the model
+pls_model
+
+# Plot the results
+plot(pls_model, type = c("p", "g"), xlab = "Components", ylab = "RMSE") 
+
+# Make prediction on the test set
+pls_pred <- predict(pls_model, X_test, ncomp = as.numeric(pls_model$bestTune))
+```
+
+### Test set
+
+```{r}
+# Get the test Set performance metrics
+postResample(pred = pls_pred, obs = y_test)
+```
+
+Thus the above plot shows that the 14 components is the best value to choose for the train set. And followed by we have the model's tuning parameter, RMSE and R square value of the train and test sets.
+
+### Ridge Regression
+
+Let us check how ridge regression is fitting the dataset. Here we will use the train() in the caret package with method = ridge that represents ridge regression. And we will set the train control with our control grid. Preprocessing of the data is necessary for this model so we process the data using centering and scaling. We will use 20 different values of lambda from 0 to 0.3 beacuse of the step raise if we set 0 to 1. After training the model we have the follwoing results.
+
+```{r Question2(e)Rigde, warning=FALSE, error=FALSE}
+# Create the grid for the ridge model
+ridge_grid <- data.frame(.lambda = seq(0, .1, length = 20))
+
+set.seed(1)
+
+# Check the file exists and load to variables
+# else bulid and store the Ridge model
+if(file.exists("models/ridge_model.rds")) {
+    ridge_model <- readRDS("models/ridge_model.rds")
+} else {
+    ridge_model <- train(x = X_train, y = y_train, method = "ridge", trControl = ctrl, preProcess = c("center", "scale"), tuneGrid = ridge_grid)
+    saveRDS(ridge_model, "models/ridge_model.rds")
+}
+
+# Print the model
+ridge_model
+
+# Plot the results
+plot(ridge_model, type = c("p", "g"), xlab = "Lambda", ylab = "RMSE")
+
+# Make prediction on the test set
+ridge_pred <- predict(ridge_model, as.matrix(X_test), s = as.numeric(ridge_model$bestTune))
+```
+
+### Test set
+
+```{r}
+# Get the test Set performance metrics
+postResample(pred = ridge_pred, obs = y_test)
+```
+
+Thus the above plot shows that the best lambda value for this dataset is 0.1578947 that is choosed from the train set using ridge regression. And followed by we have the model's tuning parameter, RMSE and R square value of the train and test sets.
+
+
+### Lasso Regression
+
+Let us try lasso regualizer for the dataset. Here we will be using the train() in the caret package with method = enet but that represents lasso regression by setting the lambda in the tune grid to be zero and varying the fraction parameter. Preprocessing of the data is necessary for this model so we process the data using centering and scaling. We will use 20 different values of fraction from 0 to 1. After training the model we have the follwoing results.
+
+```{r Question2(e)lasso, warning=FALSE,message=FALSE, error=FALSE}
+# Create the grid for the ridge model
+lasso_grid <- expand.grid(.fraction = seq(0.2, 1, length = 20))
+
+set.seed(1)
+
+# Check the file exists and load to variables
+# else bulid and store the lasso model
+if(file.exists("models/lasso_model.rds")) {
+    lasso_model <- readRDS("models/lasso_model.rds")
+} else {
+    lasso_model <- train(x = X_train, y = y_train, method = "lasso", trControl = ctrl, preProcess = c("center", "scale"), tuneGrid = lasso_grid)
+    saveRDS(lasso_model, "models/lasso_model.rds")
+}
+
+# Print the model
+lasso_model
+
+# Plot the results
+plot(lasso_model, type = c("p", "g"), xlab = "Fraction", ylab = "RMSE")
+
+# Make prediction on the test set
+lasso_pred <- predict(lasso_model, as.matrix(X_test), s = as.numeric(lasso_model$bestTune[1]), mode = "fraction")
+```
+
+### Test set
+
+```{r}
+# Get the test Set performance metrics
+postResample(pred = lasso_pred, obs = y_test)
+```
+
+Thus the above plot shows that the best fraction value for this dataset is  that is choosed from the train set using lasso regression. And followed by we have the model's tuning parameter, RMSE and R square value of the train and test sets.
+
+### Elastic Net
+
+Let us try Elastic net regualizer for the dataset. Here we will be using the train() in the caret package with method = enet but by setting the lambda and fraction in the tune grid to be varying values so that it gives us the otimal parameter for the elastic net model. Preprocessing of the data is necessary for this model so we process the data using centering and scaling. We will use 20 different values of fraction from 0.05 to 1 and three different lambda value as 0, 0.01, 0.1. After training the model we have the following results.
+
+
+```{r Question2(e)enet, warning=FALSE}
+# Develop the grid
+enetGrid <- expand.grid(.lambda = c(0, 0.01, .1), .fraction = seq(0.05, 1, length = 20))
+
+set.seed(1)
+
+# Check the file exists and load to variables
+# else bulid and store the enet model
+if(file.exists("models/enet_model.rds")) {
+    enet_model <- readRDS("models/enet_model.rds")
+} else {
+    enet_model <- train(x = X_train, y_train, method = "enet", tuneGrid = enetGrid, trControl = ctrl, preProc = c("center", "scale"))
+    saveRDS(enet_model, "models/enet_model.rds")
+}
+
+# Print the model
+enet_model
+
+# Plot the paramter to see the best parameter
+plot(enet_model, type = c("p", "g"), xlab = "Fraction", ylab = "RMSE")
+
+# Make prediction on the test set
+enet_pred <- predict(enet_model, as.matrix(X_test), s = as.numeric(enet_model$bestTune), mode = "fraction")
+```
+
+### Test set
+
+```{r}
+# Get the test Set performance metrics
+postResample(pred = enet_pred, obs = y_test)
+```
+
+Thus the above plot shows that the best enet model has the parameter of fraction value as 0.35 and lambda as 0.1 that is choosed from the train set using Elastic net. And followed by we have the model's tuning parameter, RMSE and R square value of the train and test sets.
+
+### Overall Results
+
+After doing all five models the below table shows the Best parameter, RMSE and R square value of the Training and test set.
+
+Model | Parameter |  Training RMSE | Training R Squared | Testing RMSE | Testing R Squared
+----- | --------- | ---- | -------- | ---- | -------- | -----
+    Linear  |   388 predictors     |    47.2918    |   0.1072  |   24.0788     |   0.0325  |
+    PLS  |   7 components     |    11.9295    |   0.4759  |   10.8979     |   0.4457  |
+    Ridge  |   Lambda as 0.1      |    12.9275    |   0.462  |   12.1947     |   0.385  |
+    Lasso  |   Fraction as 0.2     |    1093454.0597    |   0.3858  |   11.4899     |   0.3907  |
+    Elastic Net  |   lambda as 0.1 & Fraction as 0.35  |    11.6297    |   0.4847  |   11.1501     |   0.4271  |
+
+Looking at the table we can say that, PLS is the best for this dataset. Thus the model generated using other models doesn't have better predictive performance than PLS for this test and train split with seed as 1.
+
+
+### Non Linear Models 
+
+#### KNN
+
+Lets first fit the data with a KNN model. For this I have used train() in the caret package with knn as method. Below we have complete information about the KNN model.
+
+```{r KNN}
+# Set the seed
+set.seed(1)
+
+# Check the file exists and load to variables
+# else bulid and store the KNN model
+if(file.exists("models/knn_model.rds")) {
+    knn_model <- readRDS("models/knn_model.rds")
+} else {
+    knn_model <- train(x = X_train, y = y_train, method = "knn", preProc = c("center", "scale"), tuneLength = 10, trControl = ctrl)
+    saveRDS(knn_model, "models/knn_model.rds")
+}
+
+# Print the model
+knn_model
+
+# Plot the model
+plot(knn_model)
+
+# Predict the model
+knn_pred <- predict(knn_model, newdata = X_test)
+```
+
+#### Test set
+
+```{r Question3 KNNi}
+# Get the test Set performance metrics
+postResample(pred = knn_pred, obs = y_test)
+```
+
+From the above plot and the tabulated result, we can clearly see that the best model has the k value of 5. That is the best R^2 is obtain when we are considering 5 nearest neighbours. The R^2 value obtained on the test set is 0.45.
+    
+#### Neural Network 
+
+Lets bulid the model using neural network model using train() in caret package with method as nnet. Here we are buliding it without PCA. I am setting the decay to be 0, 0.001, 0.01, 0.1 and size varying from 1 to 10.
+
+```{r Question3 Neural Network, warning=FALSE}
+# Create the grid for the network
+nn_grid <- expand.grid(.decay = c(0, 0.01, 0.1), .size = 1:10)
+
+# Set the seed
+set.seed(1)
+
+# Check the file exists and load to variables
+# else bulid and store the model
+if(file.exists("models/nnet_model.rds")) {
+    nnet_model <- readRDS("models/nnet_model.rds")
+} else {
+    nnet_model <- train(x = X_train, y = y_train, tuneGrid = nn_grid, method = "nnet", preProc = c("center", "scale"),
+                        linout = TRUE, trace = FALSE, MaxNWts = 10 * (ncol(X_train)+1) + 10 + 1, maxit=500)
+    saveRDS(nnet_model, "models/nnet_model.rds")
+}
+
+# Print the model
+nnet_model
+
+# Plot the model
+plot(nnet_model)
+
+# Predict the test set
+nnet_pred <- predict(nnet_model, newdata = X_test)
+```
+
+
+#### Test set
+
+```{r Question3 Neural Networki} 
+# Get the test Set performance metrics
+postResample(pred = nnet_pred, obs = y_test)
+```
+
+From the above plot and the tabulated result, we can clearly see that the best model of neural network model is of size 4 and decay is 0.01. The R^2 value obtained on the test set is 0.9987.
+   
+#### Averaged Neural Network
+
+Lets bulid the model using averaged neural network model using train() in caret package with method as avNNet. I am setting the decay to be 0, 0.001, 0.01, 0.1 and size varying from 1 to 10 with bag as False.
+
+```{r Question3 Averaged Neural Network, warning=FALSE}
+# Create the tune grid
+tune_grid <- expand.grid(.decay = c(0, 0.01, .1), .size = 1:10, .bag = FALSE)
+
+# Setting the seed
+set.seed(1)
+
+# Check the file exists and load to variables
+# else bulid and store the model
+if(file.exists("models/avg_nnet_model.rds")) {
+    avg_nnet_model <- readRDS("models/avg_nnet_model.rds")
+} else {
+    avg_nnet_model <- train(x = X_train, y = y_train, tuneGrid = tune_grid, method = "avNNet", preProc = c("center", "scale"),
+                            linout = TRUE, trace = FALSE, MaxNWts = 10 * (ncol(X_train) + 1) + 10 + 1, maxit = 500)
+    saveRDS(avg_nnet_model, "models/avg_nnet_model.rds")
+}
+
+# Print the model
+avg_nnet_model
+
+# Plot the model
+plot(avg_nnet_model)
+
+# Make the prediction 
+avg_nnet_pred <- predict(avg_nnet_model, newdata = X_test)
+```
+
+#### Test set
+
+```{r Question3 Averaged Neural Networki}
+# Get the performance scores
+postResample(pred = avg_nnet_pred, obs = y_test)
+```
+
+From the above plot and the tabulated result, we can clearly see that the best model of averaged neural network model has weight decay value of 0.1 and size as 4. The R^2 value obtained on the test set is 0.9989.
+    
+#### Mars Model with no preprocessing
+
+Lets bulid the model using mars model with train() in caret package with method as earth. I am setting the degree to be 1, 2, 3 and number of prune varying from 2 to 38.
+
+```{r Question3 Mars}
+# Create the tune grid
+tune_grid <- expand.grid(.degree = 2:4, .nprune = 30:50)
+
+# Setting the seed
+set.seed(1)
+
+# Check the file exists and load to variables
+# else bulid and store the model
+if(file.exists("models/mars_model.rds")) {
+    mars_model <- readRDS("models/mars_model.rds")
+} else {
+    mars_model <- train(x = X_train, y = y_train, trControl = ctrl, tuneGrid = tune_grid, method = "earth")
+    saveRDS(mars_model, "models/mars_model.rds")
+}
+
+# Print the model
+mars_model
+
+# Plot the model
+plot(mars_model)
+
+# Make the prediction 
+mars_pred <- predict(mars_model, newdata = X_test)
+```
+
+#### Test set
+
+```{r Question3 Marsi}
+# Get the performance scores
+postResample(pred = mars_pred, obs = y_test)
+```
+
+From the above plot and the tabulated result, we can clearly see that the best model of mars model has nprune = 24 and degree = 2. The R^2 value obtained on the test set is 0.985.
+
+#### Support Vector Machine
+
+Lets bulid the model using support vector machine using train() in caret package with svmRadial method which uses radial basis function. For svm, I set the tune length to be 14 as it tuneLength argument will use the default grid search of 20 cost values between 2^-2, 2^-1, . . . , 2^11. sigma is estimated analytically by default
+
+```{r Question3 SVM}
+# Setting the seed
+set.seed(1)
+
+# Check the file exists and load to variables
+# else bulid and store the model
+if(file.exists("models/svm_model.rds")) {
+    svm_model <- readRDS("models/svm_model.rds")
+} else {
+    svm_model <- train(x = X_train, y = y_train, trControl = ctrl, tuneLength = 14, method = "svmRadial", preProc = c("center","scale"))
+    saveRDS(svm_model, "models/svm_model.rds")
+}
+
+# Print the model
+svm_model
+
+# Plot the model
+plot(svm_model)
+
+# Make the prediction 
+svm_pred <- predict(svm_model, newdata = X_test)
+```
+
+#### Test set
+
+```{r Question3 SVMi}
+# Get the performance scores
+postResample(pred = svm_pred, obs = y_test)
+```
