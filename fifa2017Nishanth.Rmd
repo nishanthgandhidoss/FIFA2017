@@ -3,22 +3,9 @@ title: "FIFA 2017"
 author: "Nishanth Gandhidoss, Raghavendran Shankar, Josh Marshall"
 date: "9/13/2017"
 output:
-  pdf_document: default
   html_document: default
+  pdf_document: default
 ---
-
-<!--
-ROADMAP: 
-
-Part 1: We are trying to predict player position, and player rating.
-
-Part 2: Applying modifications to the input for data normalcy, skewedness, 
-distribution analysis, and removing low value predictors.  Other 
-pre-processing tasks should be included at this step.  This is likely the most
-involved and complex step for this stage of the project.
-
-Part 3: Justify and set up stratified sampling if appropriate, k-means.
--->
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo=FALSE)
@@ -106,12 +93,17 @@ Let us first bulid the linear model for this dataset. Usually for the continuous
 ```{r Question2(e)Linear, warning=FALSE}
 set.seed(1)
 
+tooHigh <- findCorrelation(cor(X_train), cutoff = 0.9)
+corrPred <- names(X_train)[-tooHigh]
+X_train_cor <- data.frame(X_train[, -tooHigh])
+X_test_cor <- data.frame(X_test[, -tooHigh])
+
 # Check the file exists and load to variables
 # else bulid and store the KNN model
 if(file.exists("models/lm_model.rds")) {
     lm_model <- readRDS("models/lm_model.rds")
 } else {
-    lm_model <- train(x = X_train, y = y_train, method = "lm", trControl = ctrl)
+    lm_model <- train(x = X_train_cor, y = y_train, method = "lm", trControl = ctrl)
     saveRDS(lm_model, "models/lm_model.rds")
 }
 
@@ -119,7 +111,7 @@ if(file.exists("models/lm_model.rds")) {
 lm_model
 
 # Predict the model
-lm_pred <- predict(lm_model, X_test)
+lm_pred <- predict(lm_model, X_test_cor)
 
 # Plot the model
 plot(lm_pred, y_test, cex = 1.3, pch = 16, col = "blue", xlab = "Predicted", ylab = "Observed", main = "Predicted vs Observed")
@@ -144,7 +136,7 @@ set.seed(1)
 # Check the file exists and load to variables
 # else bulid and store the PLS model
 if(file.exists("models/pls_model.rds")) {
-    lm_model <- readRDS("models/pls_model.rds")
+    pls_model <- readRDS("models/pls_model.rds")
 } else {
     pls_model <- train(x = X_train, y = y_train, method = "pls", trControl = ctrl, preProcess = c("center", "scale"), tuneLength = 20)
     saveRDS(pls_model, "models/pls_model.rds")
@@ -169,6 +161,8 @@ postResample(pred = pls_pred, obs = y_test)
 
 Thus the above plot shows that the 14 components is the best value to choose for the train set. And followed by we have the model's tuning parameter, RMSE and R square value of the train and test sets.
 
+
+    
 ### Ridge Regression
 
 Let us check how ridge regression is fitting the dataset. Here we will use the train() in the caret package with method = ridge that represents ridge regression. And we will set the train control with our control grid. Preprocessing of the data is necessary for this model so we process the data using centering and scaling. We will use 20 different values of lambda from 0 to 0.3 beacuse of the step raise if we set 0 to 1. After training the model we have the follwoing results.
@@ -206,8 +200,7 @@ postResample(pred = ridge_pred, obs = y_test)
 ```
 
 Thus the above plot shows that the best lambda value for this dataset is 0.1578947 that is choosed from the train set using ridge regression. And followed by we have the model's tuning parameter, RMSE and R square value of the train and test sets.
-
-
+    
 ### Lasso Regression
 
 Let us try lasso regualizer for the dataset. Here we will be using the train() in the caret package with method = enet but that represents lasso regression by setting the lambda in the tune grid to be zero and varying the fraction parameter. Preprocessing of the data is necessary for this model so we process the data using centering and scaling. We will use 20 different values of fraction from 0 to 1. After training the model we have the follwoing results.
@@ -245,7 +238,7 @@ postResample(pred = lasso_pred, obs = y_test)
 ```
 
 Thus the above plot shows that the best fraction value for this dataset is  that is choosed from the train set using lasso regression. And followed by we have the model's tuning parameter, RMSE and R square value of the train and test sets.
-
+    
 ### Elastic Net
 
 Let us try Elastic net regualizer for the dataset. Here we will be using the train() in the caret package with method = enet but by setting the lambda and fraction in the tune grid to be varying values so that it gives us the otimal parameter for the elastic net model. Preprocessing of the data is necessary for this model so we process the data using centering and scaling. We will use 20 different values of fraction from 0.05 to 1 and three different lambda value as 0, 0.01, 0.1. After training the model we have the following results.
@@ -291,14 +284,13 @@ After doing all five models the below table shows the Best parameter, RMSE and R
 
 Model | Parameter |  Training RMSE | Training R Squared | Testing RMSE | Testing R Squared
 ----- | --------- | ---- | -------- | ---- | -------- | -----
-    Linear  |   388 predictors     |    47.2918    |   0.1072  |   24.0788     |   0.0325  |
-    PLS  |   7 components     |    11.9295    |   0.4759  |   10.8979     |   0.4457  |
-    Ridge  |   Lambda as 0.1      |    12.9275    |   0.462  |   12.1947     |   0.385  |
-    Lasso  |   Fraction as 0.2     |    1093454.0597    |   0.3858  |   11.4899     |   0.3907  |
-    Elastic Net  |   lambda as 0.1 & Fraction as 0.35  |    11.6297    |   0.4847  |   11.1501     |   0.4271  |
+    Linear  |   34 predictors     |    3.1156     |   0.8063  |   3.0454     |   0.8161  |
+    PLS  |   19 components     |    2.7833    |   0.8453  |   2.7340     |   0.8518  |
+    Ridge  |   Lambda as 0      |    2.7833    |   0.8453  |   2.7341     |   0.8518  |
+    Lasso  |   Fraction as 1     |    2.7833    |   0.8453  |   2.7341     |    0.8518  |
+    Elastic Net  |   lambda as 0 & Fraction as 1  |    2.8705    |   0.8375  |   2.7341     |    0.8518  |
 
 Looking at the table we can say that, PLS is the best for this dataset. Thus the model generated using other models doesn't have better predictive performance than PLS for this test and train split with seed as 1.
-
 
 ### Non Linear Models 
 
@@ -336,7 +328,7 @@ knn_pred <- predict(knn_model, newdata = X_test)
 postResample(pred = knn_pred, obs = y_test)
 ```
 
-From the above plot and the tabulated result, we can clearly see that the best model has the k value of 5. That is the best R^2 is obtain when we are considering 5 nearest neighbours. The R^2 value obtained on the test set is 0.45.
+From the above plot and the tabulated result, we can clearly see that the best model has the k value of 13. That is the best R^2 is obtain when we are considering 5 nearest neighbours. The R^2 value obtained on the test set is 0.45.
     
 #### Neural Network 
 
@@ -354,7 +346,7 @@ set.seed(1)
 if(file.exists("models/nnet_model.rds")) {
     nnet_model <- readRDS("models/nnet_model.rds")
 } else {
-    nnet_model <- train(x = X_train, y = y_train, tuneGrid = nn_grid, method = "nnet", preProc = c("center", "scale"),
+    nnet_model <- train(x = X_train, y = y_train, tuneGrid = nn_grid, method = "nnet", preProc = c("center", "scale"), trControl = ctrl,
                         linout = TRUE, trace = FALSE, MaxNWts = 10 * (ncol(X_train)+1) + 10 + 1, maxit=500)
     saveRDS(nnet_model, "models/nnet_model.rds")
 }
@@ -378,7 +370,7 @@ postResample(pred = nnet_pred, obs = y_test)
 ```
 
 From the above plot and the tabulated result, we can clearly see that the best model of neural network model is of size 4 and decay is 0.01. The R^2 value obtained on the test set is 0.9987.
-   
+    
 #### Averaged Neural Network
 
 Lets bulid the model using averaged neural network model using train() in caret package with method as avNNet. I am setting the decay to be 0, 0.001, 0.01, 0.1 and size varying from 1 to 10 with bag as False.
@@ -457,7 +449,7 @@ postResample(pred = mars_pred, obs = y_test)
 ```
 
 From the above plot and the tabulated result, we can clearly see that the best model of mars model has nprune = 24 and degree = 2. The R^2 value obtained on the test set is 0.985.
-
+    
 #### Support Vector Machine
 
 Lets bulid the model using support vector machine using train() in caret package with svmRadial method which uses radial basis function. For svm, I set the tune length to be 14 as it tuneLength argument will use the default grid search of 20 cost values between 2^-2, 2^-1, . . . , 2^11. sigma is estimated analytically by default
@@ -471,7 +463,7 @@ set.seed(1)
 if(file.exists("models/svm_model.rds")) {
     svm_model <- readRDS("models/svm_model.rds")
 } else {
-    svm_model <- train(x = X_train, y = y_train, trControl = ctrl, tuneLength = 14, method = "svmRadial", preProc = c("center","scale"))
+    svm_model <- train(x = X_train, y = y_train, trControl = ctrl, tuneLength = 20, method = "svmRadial", preProc = c("center","scale"))
     saveRDS(svm_model, "models/svm_model.rds")
 }
 
@@ -491,3 +483,26 @@ svm_pred <- predict(svm_model, newdata = X_test)
 # Get the performance scores
 postResample(pred = svm_pred, obs = y_test)
 ```
+
+Model | Parameter |  Training RMSE | Training R Squared | Testing RMSE | Testing R Squared
+----- | --------- | ---- | -------- | ---- | -------- | -----
+    KNN  |   K = 13     |    2.4471    |    0.8907  |   2.3623     |    0.8991  |
+    Neural Network  |   size = 10 & decay = 0.1     |    1.1041     |  0.9757   |    1.0114    |    0.9797  |
+    Avg. Neural Network  |   size = 9, decay = 0.1 & bag = FALSE      |    1.0824    |   0.9765  |   1.1453     |   0.9744  |
+    MARS  |   nprune = 47 & degree = 4    |    1.2903    |   0.9668   |    1.2509    |   0.9690   |
+    SVM  |   sigma = 0.0179333 & C = 4  |    7.0413      |   0.1070  |   7.0615      |   0.1372   |
+    
+#### Variable Importance
+
+```{r Variable Importance}
+# Neural Network
+nnet_imp <- varImp(nnet_model)
+plot(nnet_imp, top = 10, main = "Neural Network Important predictors")
+# Average Neural Network
+avg_nnet_imp <- varImp(avg_nnet_model)
+plot(avg_nnet_imp, top = 10, main = "Average Neural Network Important predictors")
+# MARS
+mars_imp <- varImp(mars_model)
+plot(mars_imp, top = 10, main = "MARS Important predictors")
+```
+

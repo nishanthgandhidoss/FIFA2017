@@ -1,0 +1,1 @@
+load("/Study/MS in DS/Sem 4/MA5790/Final Project/FIFA2017/models/svm_model.rds")
