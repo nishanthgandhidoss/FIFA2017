@@ -285,10 +285,10 @@ After doing all five models the below table shows the Best parameter, RMSE and R
 Model | Parameter |  Training RMSE | Training R Squared | Testing RMSE | Testing R Squared
 ----- | --------- | ---- | -------- | ---- | -------- | -----
     Linear  |   34 predictors     |    3.1156     |   0.8063  |   3.0454     |   0.8161  |
-    PLS  |   19 components     |    2.7833    |   0.8453  |   2.7340     |   0.8518  |
-    Ridge  |   Lambda as 0      |    2.7833    |   0.8453  |   2.7341     |   0.8518  |
-    Lasso  |   Fraction as 1     |    2.7833    |   0.8453  |   2.7341     |    0.8518  |
-    Elastic Net  |   lambda as 0 & Fraction as 1  |    2.8705    |   0.8375  |   2.7341     |    0.8518  |
+    PLS  |   18 components     |    2.784621    |   0.8453051  |   2.734033      |   0.851798  |
+    Ridge  |   Lambda as 0      |    2.783304     |   0.845320  |   2.7341158     |   0.851794  |
+    Lasso  |   Fraction as 1     |    2.783304    |   0.845320  |   2.7341158     |    0.851794  |
+    Elastic Net  |   lambda as 0 & Fraction as 1  |    2.784570    |   0.845311  |   2.7341158     |    0.851794  |
 
 Looking at the table we can say that, PLS is the best for this dataset. Thus the model generated using other models doesn't have better predictive performance than PLS for this test and train split with seed as 1.
 
@@ -504,5 +504,12 @@ plot(avg_nnet_imp, top = 10, main = "Average Neural Network Important predictors
 # MARS
 mars_imp <- varImp(mars_model)
 plot(mars_imp, top = 10, main = "MARS Important predictors")
+```
+
+### Predcited vs Observed
+
+```{r Predcited vs Observed}
+# Plot the model
+plot(nnet_pred, y_test, cex = 1.2, pch = 16, col = "blue", xlab = "Predicted", ylab = "Observed", main = "Neural Network - Predicted vs Observed")
 ```
 
