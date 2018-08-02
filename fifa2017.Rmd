@@ -1,14 +1,22 @@
 ---
 title: "FIFA 2017"
+<<<<<<< HEAD
+author: "Nishanth Gandhidoss, Raghavendran Shankar, Joshua Marshall"
+=======
 author: "Nishanth Gandhidoss, Raghavendran Shankar, Josh Marshall"
+>>>>>>> 1ec801166d09a930fb8570dd6d9b1d035720b8b7
 date: "9/13/2017"
 output:
   pdf_document: default
   html_document: default
+<<<<<<< HEAD
+  word_document: default
+=======
+>>>>>>> 1ec801166d09a930fb8570dd6d9b1d035720b8b7
 ---
 
-<!--
-ROADMAP: 
+<!-- 
+## Project Roadmap: 
 
 Part 1: We are trying to predict player position, and player rating.
 
@@ -17,7 +25,7 @@ distribution analysis, and removing low value predictors.  Other
 pre-processing tasks should be included at this step.  This is likely the most
 involved and complex step for this stage of the project.
 
-Part 3: Justify and set up stratified sampling if appropriate, k-means.
+Part 3: Justify and set up stratified sampling if appropriate, k-fold
 -->
 
 ```{r setup, include=FALSE}
@@ -40,10 +48,6 @@ installNewPackage("caret")
 installNewPackage("corrplot")
 installNewPackage("moments")
 installNewPackage("e1071")
-installNewPackage("elasticnet")
-installNewPackage("earth")
-installNewPackage("doParallel")
-
 
 library(Amelia)
 library(wordcloud)
@@ -51,27 +55,20 @@ library(caret)
 library(corrplot)
 library(moments)
 library(e1071)
-library(elasticnet)
-library(earth)
-library(doMC)
-
-registerDoMC(12)
 ```
 
 
 ## FIFA 2017
 
-Something about the data - read the kaggle page
+FIFA 2017 is an 2017 version of EA Sports game on Football(soccer) that have been around for a more than decade. The data is scraped from https://www.fifaindex.com/ and provided as a competition on https://www.kaggle.com. The data consists of attributes of the player ranging from their professional, demographic, skills etc. information.
 
 ## Load the data
 
+Let us load the data first.
+
 ```{r loadthedata}
+# Read the data
 fifa_2017 <- read.csv(file = "data/FullData.csv", na.strings=c("","NA"))
-head(fifa_2017)
-
-fifa_predictors <- fifa_2017[,-which(names(fifa_2017) %in% c("Rating", "National_Position"))]
-fifa_targets <- fifa_2017[,which(names(fifa_2017) %in% c("Rating", "National_Position"))]
-
 ```
 
 <!-- Do we really need this table? -->
@@ -80,6 +77,7 @@ fifa_targets <- fifa_2017[,which(names(fifa_2017) %in% c("Rating", "National_Pos
 <!-- We should have a written summary of the data, just having a section stating diamentions isn't meaningful. -->
 
 ```{r dimension}
+# Check the dimension
 dim(fifa_2017)
 ```
 
@@ -97,14 +95,17 @@ set.seed(1)
 col_name <- colnames(fifa_2017)
 
 # Generate random numbers for frequency for the word cloud
-col_name_values <- runif(length(col_name), min = 0, max = 1)
+col_name_values <- 1
 
 # Create the Word cloud for all variables
 word_cloud <- data.frame(col_name, col_name_values)
-wordcloud(word_cloud$col_name, freq = word_cloud$col_name_values, random.order = TRUE, random.color = FALSE, scale = c(2, 0.05), col = brewer.pal(9, "Oranges"))
+wordcloud(word_cloud$col_name, freq = word_cloud$col_name_values, random.order = TRUE, random.color = FALSE, scale = c(1.25, 0.5), col = brewer.pal(9, "Oranges"))
 ```
 
 As we have seen the whole variable word cloud let us see the continuous and categorical variable's word cloud.
+
+
+### Categorical Variables
 
 ```{r wordcloudi}
 # Setting the seed
@@ -122,19 +123,25 @@ col_name_factor <- colnames(fifa_2017_factor)
 col_name_integer <- colnames(fifa_2017_integer)
 
 # Generate random numbers for frequency for the word cloud
-col_name_factor_values <- runif(length(col_name_factor), min = 0, max = 1)
-col_name_integer_values <- runif(length(col_name_integer), min = 0, max = 1)
+col_name_factor_values <- 1
+col_name_integer_values <- 1
 
 # Create the Word cloud for all variables
 word_cloud_factor <- data.frame(col_name_factor, col_name_factor_values)
 wordcloud(word_cloud_factor$col_name_factor, freq = word_cloud_factor$col_name_factor_values, random.order = TRUE, random.color = FALSE, 
           scale = c(3.4, 0.5), col = brewer.pal(9, "Oranges"))
+```
+
+
+### Continuous Variable
+
+```{r Continuous}
+# Word cloud for Continuous variable
 word_cloud_integer <- data.frame(col_name_integer, col_name_integer_values)
 wordcloud(word_cloud_integer$col_name_integer, freq = word_cloud_integer$col_name_integer_values, random.order = TRUE, random.color = FALSE,
-          scale = c(2, 0.5), col = brewer.pal(9, "Oranges"))
+          scale = c(1.4, 0.5), col = brewer.pal(9, "Oranges"))
 ```
 <!-- We see here even what look like rendering errors. -->
-
 
 ## Goal of the study
 
@@ -156,7 +163,6 @@ The above map shows the missing values in white.
 
 ```{r missingcount1}
 missing_count <- sapply(fifa_2017, function(x) sum(is.na(x)))
-print(missing_count)
 ```
 
 Thus we have the column names and number of missing values in each of the columns. To understand things more clear, lets filter out only those column having missing values leaving others.
@@ -166,11 +172,11 @@ Thus we have the column names and number of missing values in each of the column
 missing_count[missing_count > 0]
 ```
 
-
 ## Imputation of missing values
 
 The Variables National_Position, National_Kit, Club_Kit, Club_joining, Contract_Expiry, Club_Position have atleast one missing value in the data. 
 As the number of outliers is large in Club_fit and Contract_Expiry, the missing values are imputed by median value, The variables National_Position and National_kit are removed as they are not wanted.
+
 The Club_position and Club_Joining have missing categorical values which are imputed by mode.
 
 ```{r Imputation of missing values}
@@ -188,6 +194,7 @@ Mode <- function(x) {
   ux[which.max(table(match(x, ux)))]
 }
 
+# Calling the corresponding impute function
 fifa_2017$Club_Position = ifelse(is.na(fifa_2017$Club_Position), ave(fifa_2017$Club_Position, FUN = function(x) Mode(x)), fifa_2017$Club_Position)
 fifa_2017$Club_Joining = ifelse(is.na(fifa_2017$Club_Joining), ave(fifa_2017$Club_Joining, FUN = function(x) Mode(x)),fifa_2017$Club_Joining)
 ```
@@ -197,6 +204,7 @@ fifa_2017$Club_Joining = ifelse(is.na(fifa_2017$Club_Joining), ave(fifa_2017$Clu
 The height and weight variable are converted to numerical values
 
 ```{r Conversion to numerical values}
+# Conversion of Height and Weight to numerical values
 fifa_2017$Height <- as.numeric(gsub(fifa_2017$Height,pattern = " cm",replacement = ""))
 fifa_2017$Weight <- as.numeric(gsub(fifa_2017$Weight,pattern = " kg",replacement = ""))
 ```
@@ -206,6 +214,7 @@ fifa_2017$Weight <- as.numeric(gsub(fifa_2017$Weight,pattern = " kg",replacement
 The data after imputation is verified for missing values. It is found that there is no missing value in the predictors.
 
 ```{r missmap}
+# Check for missing map after processing
 missmap(fifa_2017, col = c("white", "darkolivegreen3"),main = "Missing Map | After Processing")
 ```
 
@@ -239,7 +248,7 @@ for(i in 1:length(skew)){
     if(skew[i] > 1){
         high_skew <- c(high_skew, names(skew[i]))
         high_skew_value <- c(high_skew_value, as.numeric(skew[i]))
-        hist(fifa_2017[,names(skew[i])],main = paste(names(skew[i]), "|", skew[i]), cex.main = 3, xlab = names(skew[i]))
+        hist(fifa_2017[,names(skew[i])],main = paste(names(skew[i]), "|", skew[i]), xlab = names(skew[i]))
     }
 }
 ```
@@ -258,7 +267,7 @@ skew_measures <- matrix()
 par(mfrow = c(3,3))
 for (i in 1:ncol(fifa_data)){
     skew_measures[i] <- round(skewness(fifa_data[,i]), 3)
-    hist(fifa_data[,i], main = paste(colnames(fifa_data)[i], "|", skew_measures[i]), cex.main = 3, xlab = colnames(fifa_data)[i]  )
+    hist(fifa_data[,i], main = paste(colnames(fifa_data)[i], "|", skew_measures[i]), xlab = colnames(fifa_data)[i])
 }
 
 data.frame(cbind(column = colnames(fifa_data), skew_measures))
@@ -267,12 +276,15 @@ data.frame(cbind(column = colnames(fifa_data), skew_measures))
 
 ## Correlation between Continuous predictors 
 
+<<<<<<< HEAD
+=======
 <!--
 What about correlation with the target variables?  All data which doesn't contribute to the prediction accuracy of the targeted 
 variables should be removed from consideration.  This is one of the more important steps as it improves computation requirements and
 improves intelligability.
 -->
 
+>>>>>>> 1ec801166d09a930fb8570dd6d9b1d035720b8b7
 The relationship between the predictors can be understood by seeing the correlation between the predictors. We can calculate the correlation and plot it visualize those. By this way, we can remove the one of the two predictors which are highly correlated with each other. Let see the correaltion first.
 
 ```{r corrplot}
@@ -285,7 +297,11 @@ corrplot(cor(fifa_2017_integer), order="hclust", tl.cex = 1)
 highCorr = findCorrelation(cor(fifa_2017_integer), cutoff = 0.90)
 fifa_2017_integer_rem <- fifa_2017_integer[,-highCorr]
 removed_col <- names(fifa_2017_integer)[highCorr]
+```
 
+
+
+```{r}
 # Matrix has no values > cutoff=0.9
 corrplot(cor(fifa_2017_integer_rem), order="hclust", tl.cex = 1)
 
@@ -295,93 +311,23 @@ print(removed_col)
 ```
 
 
+## Data Splitting and Sampling 
 
+When we check the dimension of the dataset we can see that the number of observartion is way larger than the number of predictors. Thus we can split the dataset into training and testing set. Since we have almost 17k+ observation we can use K-fold cross validation for bettter model performance. In our case we are going to use 10 as K value.
+
+```{r Data Splitting}
+# Seperating the Predictors and Targets 
+fifa_predictors <- fifa_2017[,-which(names(fifa_2017) %in% c("Rating", "National_Position"))]
+fifa_targets <- fifa_2017[,which(names(fifa_2017) %in% c("Rating", "National_Position"))]
+
+# Creating the index value for 10 fold cross validation
+cvSplits <- createFolds(fifa_predictors, k = 10, returnTrain = TRUE)
+```
+
+<<<<<<< HEAD
+Thus using the cvSplits we can split the dataframe into 10 folds for the modelling.
+=======
 ## Setting up the testing apparatus
 
-At this stage, all data have been converted to numerical forms, been pruned, and is primed for testing.  As noted above, stratified sampliing is not nessicary for this corpus.  This leaves K-means cross validation for a number of models.  The models we will be testing are two of the more general models, elastic-net and MARS.  These were chosen for their generality and their tpyically acceptable performance as baseline models.  
-
-
-```{r}
-
-#Copasta from https://stackoverflow.com/questions/8805298/quickly-remove-zero-variance-variables-from-a-data-frame
-zeroVariance <- function(dat) {
-    out <- lapply(dat, function(x) length(unique(x)))
-    want <- which(!out > 1)
-    unlist(want)
-}
-
-fifa_predictors_no_missing <- fifa_predictors[,colSums(is.na(fifa_predictors)) == 0]
-fifa_predictors_numerical <- fifa_predictors_no_missing[,sapply(fifa_predictors_no_missing, is.numeric)]
-#fifa_predictors_numerical <- fifa_predictors_numerical[,-nearZeroVar(fifa_predictors_numerical)]
-fifa_predictors_categorical <- fifa_predictors[,-sapply(fifa_predictors, is.numeric)]
-fifa_targets_numerical <- fifa_targets[,sapply(fifa_targets, is.numeric)]
-fifa_targets_categorical <- fifa_targets[,sapply(fifa_targets, is.numeric)]
-
-################################
-#TODO:
-#Josh: ridge regression, lasso regression?
-#
-
-fifa_training_control <- trainControl(method = "cv", number = 5)
-
-usefulDataset <- data.frame(cbind(fifa_targets_numerical, fifa_predictors_numerical))
-
-linearModel <- lm(
-  fifa_targets_numerical ~ ., data = usefulDataset
-)
-
-lasso_fit <- train(
-  x = fifa_predictors_numerical, 
-  y = fifa_targets_numerical, 
-  preProcess = c("center", "scale", "BoxCox", "pca"), 
-  method = 'lasso', 
-  trControl = fifa_training_control
-)
-
-ridge_fit <- train(
-  x = fifa_predictors_numerical, 
-  y = fifa_targets_numerical, 
-  preProcess = c("center", "scale", "BoxCox", "pca"), 
-  method = 'ridge', 
-  trControl = fifa_training_control
-)
-
-enet_grid <- expand.grid(.lambda = c(0, 0.01, 0.05, 0.1, 0.5, 1), .fraction = seq(0.05, 1, length = 20))
-
-elastic_net_fit <- train(
-  x = fifa_predictors_numerical, 
-  y = fifa_targets_numerical, 
-  preProcess = c("center", "scale", "BoxCox", "pca"), 
-  method = 'enet', 
-  tuneGrid = enet_grid, 
-  trControl = fifa_training_control
-)
-
-PLS_fit <- train(
-  x = fifa_predictors_numerical, 
-  y = fifa_targets_numerical, 
-  preProcess = c("center", "scale", "BoxCox", "pca"), 
-  method = 'pls',
-  trControl = fifa_training_control
-)
-
-svm_fit <- train(
-  x = fifa_predictors_numerical, 
-  y = fifa_targets_numerical, 
-  preProcess = c("center", "scale", "BoxCox", "pca"), 
-  method = "svmRadial",
-  tuneLength = 14,
-  trControl = fifa_training_control
-)
-
-
-MARS_fit <- train(
-  x = fifa_predictors_numerical, 
-  y = fifa_targets_numerical, 
-  preProcess = c("center", "scale", "BoxCox", "pca"), 
-  method = 'bagEarth',
-  trControl = fifa_training_control
-  )
-
-
-```
+At this stage, all data have been converted to numerical forms, been pruned, and is primed for testing.  
+>>>>>>> 1ec801166d09a930fb8570dd6d9b1d035720b8b7
